@@ -1,0 +1,19 @@
+{
+  "name": "crypto-app",
+  "version": "1.0.0",
+  "description": "crypto app ",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "myself",
+  "dependencies": {
+    "ccxt": "^1.17.45",
+    "express": "^4.16.3",
+    "fs": "0.0.2",
+    "googleapis": "^32.0.0",
+    "mongodb": "^3.1.1",
+    "path": "^0.12.7",
+    "ws": "^6.0.0"
+  }
+}
