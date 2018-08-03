@@ -42,10 +42,10 @@ let krakenOfsCheck = 0; // 0 for first instance of the private calls and fetch o
      
      
 //      const bprivate = getPrivateExData(db,binance,bmarkets);
-//      const bpublic = getPublicExData(db,binance);
+      const bpublic = getPublicExData(db,binance);
 
      
-     const kprivate = getPrivateExData(db,kraken);
+ //    const kprivate = getPrivateExData(db,kraken);
 //      const kpublic = getPublicExData(db,kraken);
 
      
@@ -57,7 +57,7 @@ let krakenOfsCheck = 0; // 0 for first instance of the private calls and fetch o
      
 //      const updateGorder = updateGSheet(db,"Order","nodejsOrder");
 //      const updateGbalance = updateGSheet(db,"Balance","nodejs");
-//      const updateGticker = updateGSheet(db,"Ticker","nodejsTicker");
+      const updateGticker = updateGSheet(db,"Ticker","nodejsTicker");
 //      const updateGtrade = updateGSheet(db,"Trade","nodejsTrade");
      
 //      await bprivate;
