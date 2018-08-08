@@ -40,25 +40,33 @@ let krakenOfsCheck = 0; // 0 for first instance of the private calls and fetch o
 
    try {
      
-     
-//      const bprivate = getPrivateExData(db,binance,bmarkets);
-      const bpublic = getPublicExData(db,binance);
+     while (1){
+       await Promise.all([
+        getPrivateExData(db,binance,bmarkets),
+        getPublicExData(db,binance),
+        getPrivateExData(db,kraken),
+        getPublicExData(db,kraken),
+        getPrivateExData(db,bittrex),
+        getPublicExData(db,bittrex),
+        updateGSheet(db,"Order","nodejsOrder"),
+        updateGSheet(db,"Balance","nodejs"),
+        updateGSheet(db,"Ticker","nodejsTicker"),
+        updateGSheet(db,"Trade","nodejsTrade")
+       ])
+     }
+//       const bprivate = getPrivateExData(db,binance,bmarkets);
+//       const bpublic = getPublicExData(db,binance);
 
-     
- //    const kprivate = getPrivateExData(db,kraken);
-//      const kpublic = getPublicExData(db,kraken);
+//       const kprivate = getPrivateExData(db,kraken);
+//       const kpublic = getPublicExData(db,kraken);
 
-     
-     
-//      const xprivate = getPrivateExData(db,bittrex);
-//      const xpublic = getPublicExData(db,bittrex);
+//       const xprivate = getPrivateExData(db,bittrex);
+//       const xpublic = getPublicExData(db,bittrex);
 
-
-     
-//      const updateGorder = updateGSheet(db,"Order","nodejsOrder");
-//      const updateGbalance = updateGSheet(db,"Balance","nodejs");
-      const updateGticker = updateGSheet(db,"Ticker","nodejsTicker");
-//      const updateGtrade = updateGSheet(db,"Trade","nodejsTrade");
+//       const updateGorder = updateGSheet(db,"Order","nodejsOrder");
+//       const updateGbalance = updateGSheet(db,"Balance","nodejs");
+//       const updateGticker = updateGSheet(db,"Ticker","nodejsTicker");
+//       const updateGtrade = updateGSheet(db,"Trade","nodejsTrade");
      
 //      await bprivate;
 //      await bpublic;
@@ -69,7 +77,7 @@ let krakenOfsCheck = 0; // 0 for first instance of the private calls and fetch o
 //      await updateGorder;
 //      await updateGbalance;
 //      await updateGticker;
-//     await updateGtrade;
+//      await updateGtrade;
    } catch (e) {
      throw e
    }
@@ -82,6 +90,8 @@ async function getPrivateExData(db, exchange, markets = undefined) {
     // fetch BALANCE from exchange
       let balance = await exchange.fetchBalance();
       
+      await sleep(exchange.rateLimit);
+      
       
       
     // fetch ORDERS: fetchOrders (symbol = undefined, since = undefined, limit = undefined, params = {})
@@ -93,6 +103,7 @@ async function getPrivateExData(db, exchange, markets = undefined) {
           for (var ord of borders) {
             orders[ord.id] = ord;
           }
+          await sleep(exchange.rateLimit);
         };
       } else if (exchange.name == 'Bittrex') { // fetch bittrex last closed orders
         var xorders = await exchange.fetchClosedOrders();  
@@ -100,14 +111,17 @@ async function getPrivateExData(db, exchange, markets = undefined) {
           orders[ord.id] = ord;
           trades[ord.id] = ord;
         }
+        await sleep(exchange.rateLimit);
         
       } else if (exchange.name == 'Kraken') { // fetch kraken closed orders
         var korders = await exchange.fetchClosedOrders(); 
         for (var ord of korders ) {
           orders[ord.id] = ord;
         }
+        await sleep(exchange.rateLimit);
       } else {
         orders = exchange.fetchOrders();
+        await sleep(exchange.rateLimit);
       }
       
       // fetch TRADES: fetchMyTrades (symbol = undefined, since = undefined, limit = undefined, params = {})
@@ -118,6 +132,7 @@ async function getPrivateExData(db, exchange, markets = undefined) {
           for (var tra of btrades) {
             trades[tra.id] = tra;
           }
+          await sleep(exchange.rateLimit);
         };
       } else if (exchange.name == 'Kraken') { // fetch kraken trades
         var offset = 0;
@@ -125,12 +140,14 @@ async function getPrivateExData(db, exchange, markets = undefined) {
         for (var tra of ktrades ) {
           trades[tra.id] = tra;
         }
+        await sleep(exchange.rateLimit);
         while (ktrades.length != 0 && krakenOfsCheck == 0) {
           offset = offset + 50;
           ktrades = await exchange.fetchMyTrades(undefined,undefined,undefined,{'ofs':offset});
           for (var tra of ktrades ) {
             trades[tra.id] = tra;
           }
+          await sleep(exchange.rateLimit);
 
           console.log('Kraken all trades loaded at first function call. Next calls will fetch only last 50 trades');
           console.log('Kraken current offset: ' + offset);
@@ -212,7 +229,7 @@ async function getPrivateExData(db, exchange, markets = undefined) {
   }
   
   await sleep(45000);
-  await getPrivateExData(db,exchange,markets);
+//   await getPrivateExData(db,exchange,markets);
 }
 
 /* Fetch exchange public data via WebSocket */
@@ -246,40 +263,42 @@ async function wsPublicExData(db,exchange,websocket = undefined) {
 async function getPublicExData (db,exchange) {
   // get tickers
   try {
-  var tickers = await exchange.fetchTickers();
-  db.collection("Ticker").updateOne({"_id" : exchange.name +".ticker"}, {
-    $set: tickers
-  }, {
-    upsert: true
-  },
-                       function(err, result) {
-    if (err) {
-      console.log(err)
-    } else {
-      console.log(exchange.name + " tickers updated: " + Object.keys(tickers).length);
-    }
-  });
+    if (exchange.name == 'Kraken') {await sleep(30000)}
+    var tickers = await exchange.fetchTickers();
+    await sleep(exchange.rateLimit);
+    db.collection("Ticker").updateOne({"_id" : exchange.name +".ticker"}, {
+      $set: tickers
+    }, {
+      upsert: true
+    },
+    function(err, result) {
+      if (err) {
+        console.log(err)
+      } else {
+        console.log(exchange.name + " tickers updated: " + Object.keys(tickers).length);
+      }
+    });
   
     } catch (e) {
 
-    if (e instanceof ccxt.DDoSProtection || e.message.includes('ECONNRESET')) {
-      console.log('[DDoS Protection] ' + e.message)
-    } else if (e instanceof ccxt.RequestTimeout) {
-      console.log('[Request Timeout] ' + e.message)
-    } else if (e instanceof ccxt.AuthenticationError) {
-      console.log('[Authentication Error] ' + e.message)
-    } else if (e instanceof ccxt.ExchangeNotAvailable) {
-      console.log('[Exchange Not Available Error] ' + e.message)
-    } else if (e instanceof ccxt.ExchangeError) {
-      console.log('[Exchange Error] ' + e.message)
-    } else if (e instanceof ccxt.NetworkError) {
-      console.log('[Network Error] ' + e.message)
-    } else {
-      throw e;
-    }
+      if (e instanceof ccxt.DDoSProtection || e.message.includes('ECONNRESET')) {
+        console.log('[DDoS Protection] ' + e.message)
+      } else if (e instanceof ccxt.RequestTimeout) {
+        console.log('[Request Timeout] ' + e.message)
+      } else if (e instanceof ccxt.AuthenticationError) {
+        console.log('[Authentication Error] ' + e.message)
+      } else if (e instanceof ccxt.ExchangeNotAvailable) {
+        console.log('[Exchange Not Available Error] ' + e.message)
+      } else if (e instanceof ccxt.ExchangeError) {
+        console.log('[Exchange Error] ' + e.message)
+      } else if (e instanceof ccxt.NetworkError) {
+        console.log('[Network Error] ' + e.message)
+      } else {
+        throw e;
+      }
   }
-  await sleep(8000);
-  await getPublicExData (db,exchange);
+  await sleep(30000);
+//   await getPublicExData (db,exchange);
 }
 
 
@@ -308,8 +327,8 @@ async function updateGSheet (db = undefined, dataType = undefined, sheet = undef
   
   var data = []
   var mdata = await getDataFromMongo(db,dataType);
-  GSheets.updateGSheetData(sheet,mdata,dataType);
-  await sleep(10000);
-  await updateGSheet(db,dataType,sheet);
+  await GSheets.updateGSheetData(sheet,mdata,dataType);
+  await sleep(30000);
+//   await updateGSheet(db,dataType,sheet);
 }
 

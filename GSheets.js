@@ -115,13 +115,18 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
   let arr = [];
   let firstCell = "!A1";
   let majorDimension = "ROWS";
-  var index,exchange,exId,order;
+  var index,exchange,exId,order,ticker;
+  var date = new Date();
   
   if (dataType == 'Balance') {
     for (index of values){
       arr = Object.keys(index.total).map(function(key) {
-        return [key, index.total[key],index.exchange];
+        if (index.total[key] !== 0) {
+          exId = index.exchange.split('.')[0];
+          return [key, index.total[key],exId];
+        }
       });
+      
       if (index.exchange == "Bittrex.balance"){
         firstCell = "!A1";
       } else if (index.exchange == "Kraken.balance"){
@@ -136,16 +141,18 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
   
   if (dataType == 'Order'){
     for (exchange of values){
-      exId = exchange._id;   
+      exId = exchange._id.split('.')[0];  
       delete exchange._id
       for (order of Object.keys(exchange)) {
         var or = exchange[order];
         var feecost = "",feecurrency = "";
+        date = new Date(order.timestamp);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         if (or.fee){
           feecost = or.fee.cost;
           feecurrency = or.fee.currency;
         }
-        arr.push([or.id,or.datetime,or.type,or.side,or.status,or.symbol,or.amount,or.price,feecost,feecurrency,exId]);
+        arr.push([or.id,date,or.type,or.side,or.status,or.symbol,or.amount,or.price,feecost,feecurrency,exId]);
       }  
     }
     arr.unshift(["id","datetime","type","side","status","symbol","amount","price","fee_cost","fee_currency","exchange"])
@@ -154,15 +161,18 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
   
   if (dataType == 'Ticker'){
     for (exchange of values){
-      exId = exchange._id;   
+      exId = exchange._id.split('.')[0];
       delete exchange._id
-      for (order of Object.keys(exchange)) {
-        var tick = exchange[order];
-
-        arr.push([tick.symbol,tick.datetime,tick.high,tick.low,tick.bid,tick.bidVolume,tick.ask,tick.askVolume,tick.close,tick.last,tick.change,tick.percentage,tick.baseVolume,tick.quoteVolume,exId]);
-      }  
+      for (ticker of Object.keys(exchange)) {
+        var tick = exchange[ticker];
+        if (tick.symbol.split('/')[1] == 'BTC' || tick.symbol.split('/')[0] == 'BTC'){
+          date = new Date(tick.timestamp);
+          date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+          arr.push([tick.symbol,date,tick.last,tick.change,tick.percentage,exId]);
+        }
+      }
     }
-    arr.unshift(["symbol","datetime","high","low","bid","bidVolume","ask","askVolume","close","last","change","percentage","baseVolume","quoteVolume","exchange"])
+    arr.unshift(["symbol","datetime","last","change","percentage","exchange"])
     data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
   }
 
@@ -173,16 +183,18 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
    
   if (dataType == 'Trade'){
     for (exchange of values){
-      exId = exchange._id;   
+      exId = exchange._id.split('.')[0];  
       delete exchange._id
       for (order of Object.keys(exchange)) {
         var tra = exchange[order];
         var tfeecost = "",tfeecurrency = "";
+        date = new Date(order.timestamp);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         if (tra.fee){
           tfeecost = tra.fee.cost;
           tfeecurrency = tra.fee.currency;
         }
-        arr.push([tra.id,tra.datetime,tra.type,tra.side,tra.cost,tra.symbol,tra.amount,tra.price,tfeecost,tfeecurrency,exId]);
+        arr.push([tra.id,date,tra.type,tra.side,tra.cost,tra.symbol,tra.amount,tra.price,tfeecost,tfeecurrency,exId]);
       }  
     }
     arr.unshift(["id","datetime","type","side","cost","symbol","amount","price","fee_cost","fee_currency","exchange"])
