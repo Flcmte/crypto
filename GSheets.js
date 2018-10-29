@@ -1,10 +1,10 @@
 const fs = require('fs');
-const {
-  google
-} = require('googleapis');
+const {google} = require('googleapis');
 const path = require('path');
+const log = require('ololog')
 
 let spreadsheetId = '1DcjxfNBnnMfqAUAFTh2hcqRX3YsVDWX_llGj73gciaM';
+let sleep = (ms) => new Promise (resolve => setTimeout (resolve, ms)) // Sleep function: use 'await sleep (1000);' to wait 1sec
 
 
 async function getGSheetKeys() {
@@ -115,7 +115,7 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
   let arr = [];
   let firstCell = "!A1";
   let majorDimension = "ROWS";
-  var index,exchange,exId,order,ticker;
+  var index,exId;
   var date = new Date();
   
   if (dataType == 'Balance') {
@@ -139,71 +139,245 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
     }
   }
   
-  if (dataType == 'Order'){
-    for (exchange of values){
-      exId = exchange._id.split('.')[0];  
-      delete exchange._id
-      for (order of Object.keys(exchange)) {
-        var or = exchange[order];
-        var feecost = "",feecurrency = "";
-        date = new Date(order.timestamp);
-        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        if (or.fee){
-          feecost = or.fee.cost;
-          feecurrency = or.fee.currency;
+  if (dataType == 'Balance_Historic'){
+    let headersSet = new Set();
+    let notUsedKeys = ['timestamp','datetime','_id']
+    let headers = [];
+    
+    for (let hBalance of values){
+      for (let key of Object.keys(hBalance)){
+        if (notUsedKeys.indexOf(key) == -1){
+          headersSet.add(key)
         }
-        arr.push([or.id,date,or.type,or.side,or.status,or.symbol,or.amount,or.price,feecost,feecurrency,exId]);
-      }  
+      }
+      headers = Array.from(headersSet)
+      headers.sort()
+    }
+    headers.unshift("Date");
+    arr.push(headers);
+    let newHBalanceEntry = new Array(headers.length).fill("")
+    for (let hBalance of values){
+      date = new Date(hBalance.datetime);
+      date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      for (let key of Object.keys(hBalance)){
+        if (notUsedKeys.indexOf(key) == -1){
+          // retrieve the normalized balance of the current currency
+          newHBalanceEntry.splice(headers.indexOf(key),1,hBalance[key].normalized);
+        }
+      }
+      newHBalanceEntry.splice(0,1,date);
+
+      arr.push([...newHBalanceEntry]);
+
+    }
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+  }
+  
+  if (dataType == 'Order'){
+    for (var order of values){
+      exId = order.exchange
+      var feecost = "",feecurrency = "";
+      date = new Date(order.timestamp);
+      date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      if (order.fee){
+        feecost = order.fee.cost;
+        feecurrency = order.fee.currency;
+      }
+      arr.push([order.id,date,order.type,order.side,order.status,order.symbol,order.amount,order.price,feecost,feecurrency,exId]);
     }
     arr.unshift(["id","datetime","type","side","status","symbol","amount","price","fee_cost","fee_currency","exchange"])
     data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
   }
   
   if (dataType == 'Ticker'){
-    for (exchange of values){
-      exId = exchange._id.split('.')[0];
-      delete exchange._id
-      for (ticker of Object.keys(exchange)) {
-        var tick = exchange[ticker];
-        if (tick.symbol.split('/')[1] == 'BTC' || tick.symbol.split('/')[0] == 'BTC'){
-          date = new Date(tick.timestamp);
-          date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-          arr.push([tick.symbol,date,tick.last,tick.change,tick.percentage,exId]);
-        }
-      }
+    for (var ticker of values){
+      exId = ticker.exchange        
+      if (ticker.symbol !== null && (ticker.symbol.split('/')[1] == 'BTC' || ticker.symbol.split('/')[0] == 'BTC')){
+        date = new Date(ticker.datetime);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        arr.push([ticker.symbol,date,ticker.last,ticker.change,ticker.percentage,exId]);
+      } else if (ticker.symbol !== null && (ticker.symbol.split('/')[1] == 'USDT' || ticker.symbol.split('/')[0] == 'USDT')) {
+        date = new Date(ticker.datetime);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        arr.push([ticker.symbol,date,ticker.last,ticker.change,ticker.percentage,exId]);
+      } else {continue}
     }
     arr.unshift(["symbol","datetime","last","change","percentage","exchange"])
     data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
   }
 
-   let resource = {
-    "valueInputOption": "USER_ENTERED",
-    "data": data
-  }
    
   if (dataType == 'Trade'){
-    for (exchange of values){
-      exId = exchange._id.split('.')[0];  
-      delete exchange._id
-      for (order of Object.keys(exchange)) {
-        var tra = exchange[order];
+    for (var trade of values){
+      exId = trade.exchange;  
         var tfeecost = "",tfeecurrency = "";
-        date = new Date(order.timestamp);
+        date = new Date(trade.datetime);
         date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        if (tra.fee){
-          tfeecost = tra.fee.cost;
-          tfeecurrency = tra.fee.currency;
+        if (trade.fee){
+          tfeecost = trade.fee.cost;
+          tfeecurrency = trade.fee.currency;
         }
-        arr.push([tra.id,date,tra.type,tra.side,tra.cost,tra.symbol,tra.amount,tra.price,tfeecost,tfeecurrency,exId]);
-      }  
+        arr.push([trade.id,date,trade.type,trade.side,trade.cost,trade.symbol,trade.amount,trade.price,tfeecost,tfeecurrency,exId
+                  // Add a logo to a cell in GSheet: ,'=IMAGE("' + urloflogo + '",1)'
+                 ]); 
     }
     arr.unshift(["id","datetime","type","side","cost","symbol","amount","price","fee_cost","fee_currency","exchange"])
     data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
   }
 
-   return new Promise(function(resolve, reject) {
+  if (dataType == 'Transaction'){
+    for (var transaction of values){
+      
+        exId = transaction.exchange;  
+        date = new Date(transaction.datetime);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        arr.push([date,
+                  transaction.type,
+                  transaction.currency,
+                  transaction.amount,
+                  transaction.fee.cost,
+                  exId
+                 ]); 
+    }
+    arr.unshift(["datetime","type","currency","amount","fee","exchange"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+  }
+  
+  if (dataType == 'Unified_Trades'){
+    for (var uTrade of values){
+      
+        exId = uTrade.exchange;  
+        date = new Date(uTrade.datetime);
+        date = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        arr.push([uTrade.timestamp,
+                  date,
+                  uTrade.type,
+                  uTrade.buy_currency,
+                  uTrade.buy_amount,
+                  uTrade.sell_currency,
+                  uTrade.sell_amount,
+                  uTrade.fee_currency,
+                  uTrade.fee_amount,
+                  uTrade.market,
+                  uTrade.price,
+                  exId
+                 ]); 
+    }
+    arr.unshift(["timestamp","Date","Type","Currency","Buy","Currency","Sell","Currency","Fee","Market","Price","exchange"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+  }
+  
+  if (dataType == 'OHLC'){
+    for (let document of values){
+      date = new Date();
+      date.setFullYear(document._id.year);
+      date.setMonth(document._id.month - 1);
+      date.setDate(document._id.day);
+      date.setHours(document._id.hour);
+      date.setMinutes(0);
+      date.setSeconds(0);
+      
+      date = date.toLocaleDateString()  + ' ' + date.toLocaleTimeString();
 
-      sheet.spreadsheets.values.batchUpdate({
+      arr.push([date, document.open, document.high, document.low, document.close, document.volume
+                  // Add a logo to a cell in GSheet: ,'=IMAGE("' + urloflogo + '",1)'
+                 ]); 
+    }
+    arr.unshift(["date","open","high","low","close","volume"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+  }
+  
+  if (dataType == 'Arbitrages'){
+    arr = [];
+    firstCell = "!A1";
+    for (let document of values){
+      
+      let percentages = document.percentage;
+      if(document.percentage.Bittrex_to_Binance !== undefined && document.percentage.Binance_to_Bittrex !== undefined) {
+        arr.push([document.market, 
+                  document.percentage.Bittrex_to_Binance, 
+                  document.percentage.Binance_to_Bittrex 
+                 ]);
+      }
+    }
+    arr.unshift(["market","Bittrex->Binance","Binance->Bittrex"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+    
+    firstCell = "!E1";
+    arr = [];
+    for (let document of values){
+
+      let percentages = document.percentage;
+      if(document.percentage.Bittrex_to_Kraken !== undefined && document.percentage.Kraken_to_Bittrex !== undefined) {
+        arr.push([document.market, 
+                  document.percentage.Bittrex_to_Kraken,
+                  document.percentage.Kraken_to_Bittrex
+                 ]);
+      }
+    }
+    arr.unshift(["market","Bittrex->Kraken","Kraken->Bittrex"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+    
+    firstCell = "!I1";
+    arr = [];
+    for (let document of values){
+
+      let percentages = document.percentage;
+      if(document.percentage.Kraken_to_Binance !== undefined && document.percentage.Binance_to_Kraken !== undefined) {
+        arr.push([document.market, 
+                  document.percentage.Kraken_to_Binance,
+                  document.percentage.Binance_to_Kraken
+                 ]);
+      }
+    }
+    arr.unshift(["market","Kraken->Binance","Binance->Kraken"])
+    data.push({range: sheetName + firstCell , majorDimension: majorDimension , values: arr});
+
+    let requests = []
+    requests.push({
+      "sortRange": {
+        "range": {
+          "sheetId": 1305390196,
+          "startRowIndex": 0,
+          "endRowIndex": 1000,
+          "startColumnIndex": 0,
+          "endColumnIndex": 10
+        },
+        "sortSpecs": [
+          {
+            "dimensionIndex": 1,
+            "sortOrder": "DESCENDING"
+          }
+//           {
+//             "dimensionIndex": 5,
+//             "sortOrder": "DESCENDING"
+//           },
+//           {
+//             "dimensionIndex": 9,
+//             "sortOrder": "DESCENDING"
+//           }
+        ]
+      }})
+  
+//  sheet.spreadsheets.batchUpdate({
+//         spreadsheetId,
+//         resource: {requests}
+//       }, function(err, response) {
+//         if (err) {
+//           console.log(err);
+//         }
+//         else  {
+//           console.log('Arbitrages sheet sorted')
+//         }
+//       });
+}
+   let resource = {
+    "valueInputOption": "USER_ENTERED",
+    "data": data,
+  }
+   
+   return new Promise(async function(resolve, reject) {
+      await sheet.spreadsheets.values.batchUpdate({
         spreadsheetId,
         resource
       }, function(err, response) {
@@ -211,8 +385,7 @@ async function updateGSheetData (sheetName = undefined , values = [], dataType =
           reject(err);
         }
         else  {
-          resolve(console.log('Total GSheet cells updated: ' + response.data.totalUpdatedCells))
-
+          resolve(console.log(dataType + ' GSheet cells updated: ' + response.data.totalUpdatedCells))
         }
       });
     }

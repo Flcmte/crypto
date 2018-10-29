@@ -1,5 +1,9 @@
 const MongoClient = require('mongodb').MongoClient
 
+/*
+require json file with MongoDB connection string, such as: 
+{"uri": "mongodb://MongoUser:UserPassword@MongoDBLocalIP:localPort/DatabaseName?authSource=AuthDatabase"}
+*/
 const uri = require('./MongoDBconf')
 
 let _db

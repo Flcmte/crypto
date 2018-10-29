@@ -6,13 +6,17 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "myself",
+  "author": "Flcmte",
   "dependencies": {
-    "ccxt": "^1.17.82",
+    "ansicolor": "^1.1.77",
+    "as-table": "^1.0.36",
+    "ccxt": "^1.17.360",
     "express": "^4.16.3",
     "fs": "0.0.2",
     "googleapis": "^32.0.0",
-    "mongodb": "^3.1.1",
+    "mongodb": "^3.1.6",
+    "node-fetch": "^2.2.0",
+    "ololog": "^1.1.112",
     "path": "^0.12.7",
     "ws": "^6.0.0"
   }
