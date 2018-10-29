@@ -2,10 +2,11 @@
 Application interfacing data from your private exchange accounts on Bittrex, Kraken, Binance, pushing all data to a self-hosted MongoDB database, and updating your private Google Spreadsheet for personnal investment follow-up
 
 ### Functionalities
+* Google Sheets as a web UI, using its full power to personalize the assets management tool
 * Arbitrage monitoring between Bittrex, Binance and Kraken
 * Pagination of trades from any market on Kraken and storage to MongoDB instance
-* Balance aggregation
-* Google Sheets as a web UI, using its full power to personalize the assets management tool
+* Current balance aggregation
+* Balance history and value in BTC at the time of trade (work in progress)
 
 ### Prerequisites
 Dedicated server with:
