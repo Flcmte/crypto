@@ -5,7 +5,8 @@ Application interfacing data from your private exchange accounts on Bittrex, Kra
 * Google Sheets as a web UI, using its full power to personalize the assets management tool
 * Arbitrage monitoring between Bittrex, Binance and Kraken
 * Pagination of trades from any market on Kraken and storage to MongoDB instance
-* Current balance aggregation
+* Current balance aggregation from exchanges
+* Current balance aggregation from wallets (MyEtherWallet, Daedalus) (improvement idea)
 * Balance history and value in BTC at the time of trade (work in progress)
 
 ### What does the monitoring tool looks like?
