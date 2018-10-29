@@ -8,6 +8,14 @@ Application interfacing data from your private exchange accounts on Bittrex, Kra
 * Current balance aggregation
 * Balance history and value in BTC at the time of trade (work in progress)
 
+### What does the monitoring tool looks like?
+* Arbitrage:
+![Arbitrages image not available](https://github.com/Flcmte/crypto/blob/master/img/Arbitrages.PNG)
+* Assets monitoring:
+![AssetsMon image not available](https://github.com/Flcmte/crypto/blob/master/img/AssetMonTool.PNG)
+* Some graphs to improve monitoring:
+![Graph image not available](https://github.com/Flcmte/crypto/blob/master/img/ToolGraphs.PNG)
+
 ### Prerequisites
 Dedicated server with:
 * [MongoDB](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-debian/) instance
